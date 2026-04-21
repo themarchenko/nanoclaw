@@ -114,7 +114,10 @@ export function ensureContainerImage(): void {
       timeout: 600000, // 10 min max for build
       cwd: path.join(process.cwd(), 'container'),
     });
-    logger.info({ image: CONTAINER_IMAGE }, 'Container image rebuilt successfully');
+    logger.info(
+      { image: CONTAINER_IMAGE },
+      'Container image rebuilt successfully',
+    );
   } catch (err) {
     throw new Error(
       `Failed to rebuild container image ${CONTAINER_IMAGE}: ${err instanceof Error ? err.message : String(err)}`,
