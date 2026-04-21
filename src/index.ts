@@ -27,6 +27,7 @@ import {
 } from './container-runner.js';
 import {
   cleanupOrphans,
+  ensureContainerImage,
   ensureContainerRuntimeRunning,
 } from './container-runtime.js';
 import {
@@ -565,6 +566,7 @@ function recoverPendingMessages(): void {
 
 function ensureContainerSystemRunning(): void {
   ensureContainerRuntimeRunning();
+  ensureContainerImage();
   cleanupOrphans();
 }
 

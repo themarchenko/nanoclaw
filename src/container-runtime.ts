@@ -3,8 +3,11 @@
  * All runtime-specific logic lives here so swapping runtimes means changing one file.
  */
 import { execSync } from 'child_process';
+import fs from 'fs';
 import os from 'os';
+import path from 'path';
 
+import { CONTAINER_IMAGE } from './config.js';
 import { logger } from './logger.js';
 
 /** The container runtime binary name. */
@@ -72,6 +75,50 @@ export function ensureContainerRuntimeRunning(): void {
     throw new Error('Container runtime is required but failed to start', {
       cause: err,
     });
+  }
+}
+
+/**
+ * Ensure the agent container image exists, rebuilding if missing.
+ * This protects against `docker system prune` removing the image.
+ */
+export function ensureContainerImage(): void {
+  try {
+    const output = execSync(
+      `${CONTAINER_RUNTIME_BIN} image inspect ${CONTAINER_IMAGE} --format '{{.Id}}'`,
+      { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8', timeout: 10000 },
+    );
+    if (output.trim()) {
+      logger.debug({ image: CONTAINER_IMAGE }, 'Container image exists');
+      return;
+    }
+  } catch {
+    // Image doesn't exist — rebuild it
+  }
+
+  logger.warn(
+    { image: CONTAINER_IMAGE },
+    'Container image missing, rebuilding...',
+  );
+
+  const buildScript = path.join(process.cwd(), 'container', 'build.sh');
+  if (!fs.existsSync(buildScript)) {
+    throw new Error(
+      `Container image ${CONTAINER_IMAGE} is missing and build script not found at ${buildScript}`,
+    );
+  }
+
+  try {
+    execSync(`bash "${buildScript}"`, {
+      stdio: 'inherit',
+      timeout: 600000, // 10 min max for build
+      cwd: path.join(process.cwd(), 'container'),
+    });
+    logger.info({ image: CONTAINER_IMAGE }, 'Container image rebuilt successfully');
+  } catch (err) {
+    throw new Error(
+      `Failed to rebuild container image ${CONTAINER_IMAGE}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
